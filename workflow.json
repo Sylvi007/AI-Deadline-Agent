@@ -1,0 +1,341 @@
+{
+  "name": "AI Deadline Agent",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3c02708e-4cbf-4d15-843b-56252b58340b",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 20,
+        "simple": false,
+        "filters": {
+          "q": "from:tiu.ac.jp -from:me"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "924d3586-e818-4cd2-b4c9-97e670f18559",
+      "name": "Get many messages"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You extract assignment deadlines from university emails.\nToday's date is {{ $now.setZone('Asia/Tokyo').toFormat('yyyy-MM-dd') }} (Asia/Tokyo).\nEmail subject: {{ $json.subject }}\nEmail body: {{ ($json.text || '').slice(0, 4000) }}\n\nRules:\n- If the email has no assignment, exam or submission deadline, set has_deadline to false.\n- Convert relative dates (\"next Friday\", \"来週の金曜日\") to an exact date.\n- Never invent a date. If the date is unclear, set has_deadline to false.\n- If no time is given, use \"23:59\".\n- The email may be in English or Japanese. Answer in English.\n- Always return every field. If has_deadline is false, set course, task, due_date, due_time and priority to \"\".\n- priority must be \"high\", \"medium\" or \"low\".",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        448,
+        0
+      ],
+      "id": "d5a7c884-e2d8-43c6-bf08-ba0c6170f86b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"has_deadline\": true,\n  \"course\": \"IoT and Mobile Technology\",\n  \"task\": \"Final exam\",\n  \"due_date\": \"2026-11-19\",\n  \"due_time\": \"23:59\",\n  \"priority\": \"high\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        208
+      ],
+      "id": "f300fb42-570f-414a-8c0b-f31c43bce900",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxOutputTokens": 2000,
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        336,
+        208
+      ],
+      "id": "1a3dd8ed-1a4c-4d5d-bbd3-e20ba86a61b8",
+      "name": "Google Gemini Chat Model"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "bbd38bdd-4f07-4fbb-82a6-90550be0ea3b",
+              "leftValue": "={{ $json.output.has_deadline }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        816,
+        16
+      ],
+      "id": "28764d66-2ca7-451b-82b0-7fef53ddc7f6",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "deadlines",
+          "mode": "list",
+          "cachedResultName": "deadlines"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "course": "={{ $json.output.course }}",
+            "task": "={{ $json.output.task }}",
+            "due_at": "={{ $json.output.due_date }}T{{ $json.output.due_time || '23:59' }}:00+09:00",
+            "priority": "={{ $json.output.priority }}",
+            "source_email_id": "={{ $('Get many messages').item.json.id }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "course",
+              "displayName": "course",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "task",
+              "displayName": "task",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "due_at",
+              "displayName": "due_at",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_email_id",
+              "displayName": "source_email_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        960,
+        48
+      ],
+      "id": "f955830c-28a8-402d-b01c-51974c9df645",
+      "name": "Insert rows in a table",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "primary",
+          "mode": "id"
+        },
+        "start": "={{ DateTime.fromISO($('Basic LLM Chain').item.json.output.due_date + 'T' + ($('Basic LLM Chain').item.json.output.due_time || '23:59'), {zone: 'Asia/Tokyo'}).minus({hours: 1}).toISO() }}",
+        "end": "={{ DateTime.fromISO($('Basic LLM Chain').item.json.output.due_date + 'T' + ($('Basic LLM Chain').item.json.output.due_time || '23:59'), {zone: 'Asia/Tokyo'}).toISO() }}",
+        "useDefaultReminders": false,
+        "additionalFields": {
+          "summary": "={{ $('Basic LLM Chain').item.json.output.course }}: {{ $('Basic LLM Chain').item.json.output.task }}"
+        },
+        "remindersUi": {
+          "remindersValues": [
+            {
+              "method": "popup",
+              "minutes": 1440
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1184,
+        48
+      ],
+      "id": "9ca92fe4-7ea1-4a81-8644-fa5b154542b6",
+      "name": "Create an event"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}

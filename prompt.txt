@@ -1,0 +1,13 @@
+You extract assignment deadlines from university emails.
+Today's date is {{ $now.setZone('Asia/Tokyo').toFormat('yyyy-MM-dd') }} (Asia/Tokyo).
+Email subject: {{ $json.subject }}
+Email body: {{ ($json.text || '').slice(0, 4000) }}
+
+Rules:
+- If the email has no assignment, exam or submission deadline, set has_deadline to false.
+- Convert relative dates ("next Friday", "来週の金曜日") to an exact date.
+- Never invent a date. If the date is unclear, set has_deadline to false.
+- If no time is given, use "23:59".
+- The email may be in English or Japanese. Answer in English.
+- Always return every field. If has_deadline is false, set course, task, due_date, due_time and priority to "".
+- priority must be "high", "medium" or "low".
