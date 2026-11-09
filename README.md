@@ -1,0 +1,1 @@
+      Tested on 15 real university emails (English and Japanese): the agent found 1 assignment deadline (World Economy, Assignment One) and marked the other 14 as having no deadline. Full accuracy check in progress.
